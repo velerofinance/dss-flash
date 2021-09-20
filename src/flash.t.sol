@@ -22,11 +22,12 @@ import "ds-token/token.sol";
 import {Vat}              from "dss/vat.sol";
 import {Spotter}          from "dss/spot.sol";
 import {Vow}              from "dss/vow.sol";
-import {GemJoin, DaiJoin} from "dss/join.sol";
-import {Dai}              from "dss/dai.sol";
+import {GemJoin, USDVJoin} from "dss/join.sol";
+import {Token}              from "dss/usdv.sol";
 
 import "./flash.sol";
 import "./base/FlashLoanReceiverBase.sol";
+import "../../dss/src/usdv.sol";
 
 interface Hevm {
     function warp(uint256) external;
@@ -35,7 +36,7 @@ interface Hevm {
 
 contract TestVat is Vat {
     function mint(address usr, uint256 rad) public {
-        dai[usr] += rad;
+        usdv[usr] += rad;
     }
 }
 
@@ -48,7 +49,7 @@ contract TestVow is Vow {
     }
     // Total surplus
     function Joy() public view returns (uint256) {
-        return vat.dai(address(this));
+        return vat.usdv(address(this));
     }
     // Unqueued, pre-auction debt
     function Woe() public view returns (uint256) {
@@ -68,10 +69,10 @@ contract TestDoNothingReceiver is FlashLoanReceiverBase {
         return CALLBACK_SUCCESS;
     }
 
-    function onVatDaiFlashLoan(address _sender, uint256 _amount, uint256 _fee, bytes calldata) external override returns (bytes32) {
+    function onVatUsdvFlashLoan(address _sender, uint256 _amount, uint256 _fee, bytes calldata) external override returns (bytes32) {
         _sender; _amount; _fee;
         // Don't do anything
-        return CALLBACK_SUCCESS_VAT_DAI;
+        return CALLBACK_SUCCESS_VAT_USDV;
     }
 
 }
@@ -90,12 +91,12 @@ contract TestImmediatePaybackReceiver is FlashLoanReceiverBase {
         return CALLBACK_SUCCESS;
     }
 
-    function onVatDaiFlashLoan(address _sender, uint256 _amount, uint256 _fee, bytes calldata) external override returns (bytes32) {
+    function onVatUsdvFlashLoan(address _sender, uint256 _amount, uint256 _fee, bytes calldata) external override returns (bytes32) {
         _sender;
         // Just pay back the original amount
-        payBackVatDai(add(_amount, _fee));
+        payBackVatUsdv(add(_amount, _fee));
 
-        return CALLBACK_SUCCESS_VAT_DAI;
+        return CALLBACK_SUCCESS_VAT_USDV;
     }
 
 }
@@ -115,21 +116,21 @@ contract TestLoanAndPaybackReceiver is FlashLoanReceiverBase {
     function onFlashLoan(address _sender, address _token, uint256 _amount, uint256 _fee, bytes calldata) external override returns (bytes32) {
         _sender; _token;
         TestVat(address(flash.vat())).mint(address(this), rad(mint));
-        flash.vat().hope(address(flash.daiJoin()));
-        flash.daiJoin().exit(address(this), mint);
+        flash.vat().hope(address(flash.USDVJoin()));
+        flash.usdvJoin().exit(address(this), mint);
 
         approvePayback(add(_amount, _fee));
 
         return CALLBACK_SUCCESS;
     }
 
-    function onVatDaiFlashLoan(address _sender, uint256 _amount, uint256 _fee, bytes calldata) external override returns (bytes32) {
+    function onVatUsdvFlashLoan(address _sender, uint256 _amount, uint256 _fee, bytes calldata) external override returns (bytes32) {
         _sender;
         TestVat(address(flash.vat())).mint(address(this), rad(mint));
 
-        payBackVatDai(add(_amount, _fee));
+        payBackVatUsdv(add(_amount, _fee));
 
-        return CALLBACK_SUCCESS_VAT_DAI;
+        return CALLBACK_SUCCESS_VAT_USDV;
     }
 
 }
@@ -149,21 +150,21 @@ contract TestLoanAndPaybackAllReceiver is FlashLoanReceiverBase {
     function onFlashLoan(address _sender, address _token, uint256 _amount, uint256 _fee, bytes calldata) external override returns (bytes32) {
         _sender; _token; _fee;
         TestVat(address(flash.vat())).mint(address(this), rad(mint));
-        flash.vat().hope(address(flash.daiJoin()));
-        flash.daiJoin().exit(address(this), mint);
+        flash.vat().hope(address(flash.usdvJoin()));
+        flash.usdvJoin().exit(address(this), mint);
 
         approvePayback(add(_amount, mint));
 
         return CALLBACK_SUCCESS;
     }
 
-    function onVatDaiFlashLoan(address _sender, uint256 _amount, uint256 _fee, bytes calldata) external override returns (bytes32) {
+    function onVatUsdvFlashLoan(address _sender, uint256 _amount, uint256 _fee, bytes calldata) external override returns (bytes32) {
         _sender; _fee;
         TestVat(address(flash.vat())).mint(address(this), rad(mint));
 
-        payBackVatDai(add(_amount, rad(mint)));
+        payBackVatUsdv(add(_amount, rad(mint)));
 
-        return CALLBACK_SUCCESS_VAT_DAI;
+        return CALLBACK_SUCCESS_VAT_USDV;
     }
 
 }
@@ -178,22 +179,22 @@ contract TestLoanAndPaybackDataReceiver is FlashLoanReceiverBase {
         _sender; _token;
         (uint256 mint) = abi.decode(_data, (uint256));
         TestVat(address(flash.vat())).mint(address(this), rad(mint));
-        flash.vat().hope(address(flash.daiJoin()));
-        flash.daiJoin().exit(address(this), mint);
+        flash.vat().hope(address(flash.usdvJoin()));
+        flash.usdvJoin().exit(address(this), mint);
 
         approvePayback(add(_amount, _fee));
 
         return CALLBACK_SUCCESS;
     }
 
-    function onVatDaiFlashLoan(address _sender, uint256 _amount, uint256 _fee, bytes calldata _data) external override returns (bytes32) {
+    function onVatUsdvFlashLoan(address _sender, uint256 _amount, uint256 _fee, bytes calldata _data) external override returns (bytes32) {
         _sender;
         (uint256 mint) = abi.decode(_data, (uint256));
         TestVat(address(flash.vat())).mint(address(this), rad(mint));
 
-        payBackVatDai(add(_amount, _fee));
+        payBackVatUsdv(add(_amount, _fee));
 
-        return CALLBACK_SUCCESS_VAT_DAI;
+        return CALLBACK_SUCCESS_VAT_USDV;
     }
 
 }
@@ -216,29 +217,29 @@ contract TestReentrancyReceiver is FlashLoanReceiverBase {
         return CALLBACK_SUCCESS;
     }
 
-    function onVatDaiFlashLoan(address _sender, uint256 _amount, uint256 _fee, bytes calldata _data) external override returns (bytes32) {
+    function onVatUsdvFlashLoan(address _sender, uint256 _amount, uint256 _fee, bytes calldata _data) external override returns (bytes32) {
         _sender;
-        flash.vatDaiFlashLoan(immediatePaybackReceiver, _amount + _fee, _data);
+        flash.vatUsdvFlashLoan(immediatePaybackReceiver, _amount + _fee, _data);
 
-        payBackVatDai(add(_amount, _fee));
+        payBackVatUsdv(add(_amount, _fee));
 
-        return CALLBACK_SUCCESS_VAT_DAI;
+        return CALLBACK_SUCCESS_VAT_usdv;
     }
 
 }
 
 contract TestDEXTradeReceiver is FlashLoanReceiverBase {
 
-    Dai dai;
-    DaiJoin daiJoin;
+    Token usdv;
+    USDVJoin usdvJoin;
     DSToken gold;
     GemJoin gemA;
     bytes32 ilk;
 
     // --- Init ---
-    constructor(address flash_, address dai_, address daiJoin_, address gold_, address gemA_, bytes32 ilk_) FlashLoanReceiverBase(flash_) public {
-        dai = Dai(dai_);
-        daiJoin = DaiJoin(daiJoin_);
+    constructor(address flash_, address usdv_, address usdvJoin_, address gold_, address gemA_, bytes32 ilk_) FlashLoanReceiverBase(flash_) public {
+        usdv = Token(usdv_);
+        usdvJoin = USDVJoin(usdvJoin_);
         gold = DSToken(gold_);
         gemA = GemJoin(gemA_);
         ilk = ilk_;
@@ -251,24 +252,24 @@ contract TestDEXTradeReceiver is FlashLoanReceiverBase {
         uint256 goldAmount = totalDebt * 3;
 
         // Perform a "trade"
-        dai.burn(me, _amount);
+        usdv.burn(me, _amount);
         gold.mint(me, goldAmount);
 
-        // Mint some more dai to repay the original loan
+        // Mint some more usdv to repay the original loan
         gold.approve(address(gemA));
         gemA.join(me, goldAmount);
         Vat(address(flash.vat())).frob(ilk, me, me, me, int256(goldAmount), int256(totalDebt));
-        flash.vat().hope(address(flash.daiJoin()));
-        flash.daiJoin().exit(me, totalDebt);
+        flash.vat().hope(address(flash.usdvJoin()));
+        flash.usdvJoin().exit(me, totalDebt);
 
         approvePayback(add(_amount, _fee));
 
         return CALLBACK_SUCCESS;
     }
 
-    function onVatDaiFlashLoan(address _sender, uint256 _amount, uint256 _fee, bytes calldata _data) external override returns (bytes32) {
+    function onVatUsdvFlashLoan(address _sender, uint256 _amount, uint256 _fee, bytes calldata _data) external override returns (bytes32) {
         _sender; _amount; _fee; _data;
-        return CALLBACK_SUCCESS_VAT_DAI;
+        return CALLBACK_SUCCESS_VAT_USDV;
     }
 
 }
@@ -288,9 +289,9 @@ contract TestBadReturn is FlashLoanReceiverBase {
         return BAD_HASH;
     }
 
-    function onVatDaiFlashLoan(address _sender, uint256 _amount, uint256 _fee, bytes calldata) external override returns (bytes32) {
+    function onVatUsdvFlashLoan(address _sender, uint256 _amount, uint256 _fee, bytes calldata) external override returns (bytes32) {
         _sender;
-        payBackVatDai(add(_amount, _fee));
+        payBackVatUsdv(add(_amount, _fee));
 
         return BAD_HASH;
     }
@@ -312,8 +313,8 @@ contract DssFlashTest is DSTest {
     DSValue pip;
     GemJoin gemA;
     DSToken gold;
-    DaiJoin daiJoin;
-    Dai dai;
+    USDVJoin usdvJoin;
+    Token usdv;
 
     DssFlash flash;
 
@@ -366,12 +367,12 @@ contract DssFlashTest is DSTest {
         gold.approve(address(gemA));
         gemA.join(me, 1000 ether);
 
-        dai = new Dai(0);
-        daiJoin = new DaiJoin(address(vat), address(dai));
-        vat.rely(address(daiJoin));
-        dai.rely(address(daiJoin));
+        usdv = new Token(0);
+        usdvJoin = new UsdvJoin(address(vat), address(usdv));
+        vat.rely(address(usdvJoin));
+        usdv.rely(address(usdvJoin));
 
-        flash = new DssFlash(address(daiJoin), address(vow));
+        flash = new DssFlash(address(usdvJoin), address(vow));
 
         pip = new DSValue();
         pip.poke(bytes32(uint256(5 ether))); // Spot = $2.5
@@ -386,12 +387,12 @@ contract DssFlashTest is DSTest {
         gold.approve(address(vat));
 
         assertEq(vat.gem(ilk, me), 1000 ether);
-        assertEq(vat.dai(me), 0);
+        assertEq(vat.usdv(me), 0);
         vat.frob(ilk, me, me, me, 40 ether, 100 ether);
         assertEq(vat.gem(ilk, me), 960 ether);
-        assertEq(vat.dai(me), rad(100 ether));
+        assertEq(vat.usdv(me), rad(100 ether));
 
-        // Basic auth and 1000 dai debt ceiling
+        // Basic auth and 1000 usdv debt ceiling
         flash.file("max", 1000 ether);
         vat.rely(address(flash));
 
@@ -401,82 +402,82 @@ contract DssFlashTest is DSTest {
         mintAndPaybackAllReceiver = new TestLoanAndPaybackAllReceiver(address(flash));
         mintAndPaybackDataReceiver = new TestLoanAndPaybackDataReceiver(address(flash));
         reentrancyReceiver = new TestReentrancyReceiver(address(flash));
-        dexTradeReceiver = new TestDEXTradeReceiver(address(flash), address(dai), address(daiJoin), address(gold), address(gemA), ilk);
+        dexTradeReceiver = new TestDEXTradeReceiver(address(flash), address(usdv), address(usdvJoin), address(gold), address(gemA), ilk);
         badReturn = new TestBadReturn(address(flash));
         noCallbacks = new TestNoCallbacks();
-        dai.rely(address(dexTradeReceiver));
+        usdv.rely(address(dexTradeReceiver));
     }
 
     function test_mint_no_fee_payback () public {
-        flash.vatDaiFlashLoan(immediatePaybackReceiver, rad(10 ether), "");
-        flash.flashLoan(immediatePaybackReceiver, address(dai), 10 ether, "");
+        flash.vatUsdvFlashLoan(immediatePaybackReceiver, rad(10 ether), "");
+        flash.flashLoan(immediatePaybackReceiver, address(usdv), 10 ether, "");
 
-        assertEq(vat.dai(address(immediatePaybackReceiver)), 0);
+        assertEq(vat.usdv(address(immediatePaybackReceiver)), 0);
         assertEq(vat.sin(address(immediatePaybackReceiver)), 0);
-        assertEq(vat.dai(address(flash)), 0);
+        assertEq(vat.usdv(address(flash)), 0);
         assertEq(vat.sin(address(flash)), 0);
     }
 
     // test mint() for _amount == 0
     function test_mint_zero_amount () public {
-        flash.vatDaiFlashLoan(immediatePaybackReceiver, 0, "");
-        flash.flashLoan(immediatePaybackReceiver, address(dai), 0, "");
+        flash.vatUsdvFlashLoan(immediatePaybackReceiver, 0, "");
+        flash.flashLoan(immediatePaybackReceiver, address(usdv), 0, "");
     }
 
     // test mint() for _amount > line
     function testFail_mint_amount_over_line1 () public {
-        flash.vatDaiFlashLoan(immediatePaybackReceiver, rad(1001 ether), "");
+        flash.vatUsdvFlashLoan(immediatePaybackReceiver, rad(1001 ether), "");
     }
     function testFail_mint_amount_over_line2 () public {
-        flash.flashLoan(immediatePaybackReceiver, address(dai), 1001 ether, "");
+        flash.flashLoan(immediatePaybackReceiver, address(usdv), 1001 ether, "");
     }
 
     // test line == 0 means flash minting is halted
     function testFail_mint_line_zero1 () public {
         flash.file("max", 0);
 
-        flash.vatDaiFlashLoan(immediatePaybackReceiver, rad(10 ether), "");
+        flash.vatUsdvFlashLoan(immediatePaybackReceiver, rad(10 ether), "");
     }
     function testFail_mint_line_zero2 () public {
         flash.file("max", 0);
 
-        flash.flashLoan(immediatePaybackReceiver, address(dai), 10 ether, "");
+        flash.flashLoan(immediatePaybackReceiver, address(usdv), 10 ether, "");
     }
 
     // test unauthorized suck() reverts
     function testFail_mint_unauthorized_suck1 () public {
         vat.deny(address(flash));
 
-        flash.vatDaiFlashLoan(immediatePaybackReceiver, rad(10 ether), "");
+        flash.vatUsdvFlashLoan(immediatePaybackReceiver, rad(10 ether), "");
     }
     function testFail_mint_unauthorized_suck2 () public {
         vat.deny(address(flash));
 
-        flash.flashLoan(immediatePaybackReceiver, address(dai), 10 ether, "");
+        flash.flashLoan(immediatePaybackReceiver, address(usdv), 10 ether, "");
     }
 
-    // test happy path onFlashLoan() returns vat.dai() == add(_amount, fee)
+    // test happy path onFlashLoan() returns vat.usdv() == add(_amount, fee)
     //       Make sure we test core system accounting balances before and after.
     function test_mint_with_fee () public {
         flash.file("toll", RATE_ONE_PCT);
         mintAndPaybackReceiver.setMint(10 ether);
 
-        flash.vatDaiFlashLoan(mintAndPaybackReceiver, rad(100 ether), "");
+        flash.vatUsdvFlashLoan(mintAndPaybackReceiver, rad(100 ether), "");
         flash.accrue();
 
         assertEq(vow.Joy(), rad(1 ether));
-        assertEq(vat.dai(address(mintAndPaybackReceiver)), rad(9 ether));
+        assertEq(vat.usdv(address(mintAndPaybackReceiver)), rad(9 ether));
 
-        flash.flashLoan(mintAndPaybackReceiver, address(dai), 100 ether, "");
+        flash.flashLoan(mintAndPaybackReceiver, address(usdv), 100 ether, "");
         flash.accrue();
 
         assertEq(vow.Joy(), rad(2 ether));
-        assertEq(vat.dai(address(mintAndPaybackReceiver)), rad(9 ether));
-        assertEq(dai.balanceOf(address(mintAndPaybackReceiver)), 9 ether);
+        assertEq(vat.usdv(address(mintAndPaybackReceiver)), rad(9 ether));
+        assertEq(usdv.balanceOf(address(mintAndPaybackReceiver)), 9 ether);
     }
 
-    // Test mint doesn't fail when contract already has a Dai balance
-    function test_preexisting_dai_in_flash () public {
+    // Test mint doesn't fail when contract already has a usdv balance
+    function test_preexisting_usdv_in_flash () public {
         flash.file("toll", RATE_ONE_PCT);
 
         // Move some collateral to the flash so it preexists the loan
@@ -484,74 +485,74 @@ contract DssFlashTest is DSTest {
 
         mintAndPaybackReceiver.setMint(10 ether);
 
-        flash.vatDaiFlashLoan(mintAndPaybackReceiver, rad(100 ether), "");
+        flash.vatUsdvFlashLoan(mintAndPaybackReceiver, rad(100 ether), "");
         flash.accrue();
 
         assertEq(vow.Joy(), rad(2 ether));
-        assertEq(vat.dai(address(mintAndPaybackReceiver)), rad(9 ether));
+        assertEq(vat.usdv(address(mintAndPaybackReceiver)), rad(9 ether));
         // Ensure pre-existing amount remains in flash
-        assertEq(vat.dai(address(flash)), 0);
+        assertEq(vat.usdv(address(flash)), 0);
 
-        // Test for erc20 dai
-        dai.mint(address(flash), 1 ether);
+        // Test for erc20 usdv
+        usdv.mint(address(flash), 1 ether);
 
-        flash.flashLoan(mintAndPaybackReceiver, address(dai), 100 ether, "");
+        flash.flashLoan(mintAndPaybackReceiver, address(usdv), 100 ether, "");
         flash.accrue();
 
         assertEq(vow.Joy(), rad(3 ether));
-        assertEq(vat.dai(address(mintAndPaybackReceiver)), rad(9 ether));
-        assertEq(dai.balanceOf(address(mintAndPaybackReceiver)), 9 ether);
+        assertEq(vat.usdv(address(mintAndPaybackReceiver)), rad(9 ether));
+        assertEq(usdv.balanceOf(address(mintAndPaybackReceiver)), 9 ether);
         // Ensure pre-existing amount remains in flash
-        assertEq(vat.dai(address(flash)), 0);
-        assertEq(dai.balanceOf(address(flash)), 1 ether);
+        assertEq(vat.usdv(address(flash)), 0);
+        assertEq(usdv.balanceOf(address(flash)), 1 ether);
         flash.convert();
-        assertEq(vat.dai(address(flash)), rad(1 ether));
-        assertEq(dai.balanceOf(address(flash)), 0);
+        assertEq(vat.usdv(address(flash)), rad(1 ether));
+        assertEq(usdv.balanceOf(address(flash)), 0);
         flash.accrue();
         assertEq(vow.Joy(), rad(4 ether));
-        assertEq(vat.dai(address(flash)), 0);
-        assertEq(dai.balanceOf(address(flash)), 0);
+        assertEq(vat.usdv(address(flash)), 0);
+        assertEq(usdv.balanceOf(address(flash)), 0);
     }
 
-    // test onFlashLoan that return vat.dai() < add(_amount, fee) fails
-    function testFail_mint_insufficient_dai1 () public {
+    // test onFlashLoan that return vat.usdv() < add(_amount, fee) fails
+    function testFail_mint_insufficient_usdv1 () public {
         flash.file("toll", 5 * RATE_ONE_PCT);
         mintAndPaybackAllReceiver.setMint(4 ether);
 
-        flash.vatDaiFlashLoan(mintAndPaybackAllReceiver, rad(100 ether), "");
+        flash.vatUsdvFlashLoan(mintAndPaybackAllReceiver, rad(100 ether), "");
     }
-    function testFail_mint_insufficient_dai2 () public {
+    function testFail_mint_insufficient_usdv2 () public {
         flash.file("toll", 5 * RATE_ONE_PCT);
         mintAndPaybackAllReceiver.setMint(4 ether);
 
-        flash.flashLoan(mintAndPaybackAllReceiver, address(dai), 100 ether, "");
+        flash.flashLoan(mintAndPaybackAllReceiver, address(usdv), 100 ether, "");
     }
 
-    // test onFlashLoan that return vat.dai() > add(_amount, fee)
+    // test onFlashLoan that return vat.usdv() > add(_amount, fee)
     // ERC 3156 says to use approve instead of transfer so you never take more than you require
-    // This is an intentional difference between ERC20 Flash Mint and Vat Dai Flash Mint
-    function test_mint_too_much_dai2 () public {
+    // This is an intentional difference between ERC20 Flash Mint and Vat usdv Flash Mint
+    function test_mint_too_much_usdv2 () public {
         flash.file("toll", 5 * RATE_ONE_PCT);
         mintAndPaybackAllReceiver.setMint(10 ether);
 
         // First mint overpays
-        flash.flashLoan(mintAndPaybackAllReceiver, address(dai), 100 ether, "");
+        flash.flashLoan(mintAndPaybackAllReceiver, address(usdv), 100 ether, "");
         flash.accrue();
 
         assertEq(vow.Joy(), rad(5 ether));
-        assertEq(dai.balanceOf(address(flash)), 0 ether);
+        assertEq(usdv.balanceOf(address(flash)), 0 ether);
     }
-    // The vat dai version will allow overpays
-    function test_mint_too_much_dai1 () public {
+    // The vat usdv version will allow overpays
+    function test_mint_too_much_usdv1 () public {
         flash.file("toll", 5 * RATE_ONE_PCT);
         mintAndPaybackAllReceiver.setMint(10 ether);
 
         // First mint overpays
-        flash.vatDaiFlashLoan(mintAndPaybackAllReceiver, rad(100 ether), "");
+        flash.vatUsdvFlashLoan(mintAndPaybackAllReceiver, rad(100 ether), "");
         flash.accrue();
 
         assertEq(vow.Joy(), rad(10 ether));
-        assertEq(vat.dai(address(flash)), 0);
+        assertEq(vat.usdv(address(flash)), 0);
     }
 
     // test that data sends properly
@@ -559,33 +560,33 @@ contract DssFlashTest is DSTest {
         flash.file("toll", 5 * RATE_ONE_PCT);
         uint256 mintAmount = 8 ether;
 
-        flash.vatDaiFlashLoan(mintAndPaybackDataReceiver, rad(100 ether), abi.encodePacked(mintAmount));
+        flash.vatUsdvFlashLoan(mintAndPaybackDataReceiver, rad(100 ether), abi.encodePacked(mintAmount));
         flash.accrue();
 
         assertEq(vow.Joy(), rad(5 ether));
-        assertEq(vat.dai(address(mintAndPaybackDataReceiver)), rad(3 ether));
+        assertEq(vat.usdv(address(mintAndPaybackDataReceiver)), rad(3 ether));
 
-        flash.flashLoan(mintAndPaybackDataReceiver, address(dai), 100 ether, abi.encodePacked(mintAmount));
+        flash.flashLoan(mintAndPaybackDataReceiver, address(usdv), 100 ether, abi.encodePacked(mintAmount));
         flash.accrue();
 
         assertEq(vow.Joy(), rad(10 ether));
-        assertEq(dai.balanceOf(address(mintAndPaybackDataReceiver)), 3 ether);
+        assertEq(usdv.balanceOf(address(mintAndPaybackDataReceiver)), 3 ether);
     }
 
     // test reentrancy disallowed
     function testFail_mint_reentrancy1 () public {
-        flash.vatDaiFlashLoan(reentrancyReceiver, rad(100 ether), "");
+        flash.vatUsdvFlashLoan(reentrancyReceiver, rad(100 ether), "");
     }
     function testFail_mint_reentrancy2 () public {
-        flash.flashLoan(reentrancyReceiver, address(dai), rad(100 ether), "");
+        flash.flashLoan(reentrancyReceiver, address(usdv), rad(100 ether), "");
     }
 
-    // test trading flash minted dai for gold and minting more dai
+    // test trading flash minted usdv for gold and minting more usdv
     function test_dex_trade () public {
         // Set the owner temporarily to allow the receiver to mint
         gold.setOwner(address(dexTradeReceiver));
 
-        flash.flashLoan(dexTradeReceiver, address(dai), 100 ether, "");
+        flash.flashLoan(dexTradeReceiver, address(usdv), 100 ether, "");
     }
 
     // test excessive max debt ceiling
@@ -594,36 +595,36 @@ contract DssFlashTest is DSTest {
     }
 
     function test_max_flash_loan () public {
-        assertEq(flash.maxFlashLoan(address(dai)), 1000 ether);
-        assertEq(flash.maxFlashLoan(address(daiJoin)), 0);  // Any other address should be 0 as per the spec
+        assertEq(flash.maxFlashLoan(address(usdv)), 1000 ether);
+        assertEq(flash.maxFlashLoan(address(usdvJoin)), 0);  // Any other address should be 0 as per the spec
     }
 
     function test_flash_fee () public {
         flash.file("toll", 5 * RATE_ONE_PCT);
-        assertEq(flash.flashFee(address(dai), 100 ether), 5 ether);
+        assertEq(flash.flashFee(address(usdv), 100 ether), 5 ether);
     }
 
     function testFail_flash_fee () public {
         flash.file("toll", 5 * RATE_ONE_PCT);
-        flash.flashFee(address(daiJoin), 100 ether);  // Any other address should fail
+        flash.flashFee(address(usdvJoin), 100 ether);  // Any other address should fail
     }
 
     function testFail_bad_token () public {
-        flash.flashLoan(immediatePaybackReceiver, address(daiJoin), 100 ether, "");
+        flash.flashLoan(immediatePaybackReceiver, address(usdvJoin), 100 ether, "");
     }
 
     function testFail_bad_return_hash1 () public {
-        flash.vatDaiFlashLoan(badReturn, rad(100 ether), "");
+        flash.vatUsdvFlashLoan(badReturn, rad(100 ether), "");
     }
     function testFail_bad_return_hash2 () public {
-        flash.flashLoan(badReturn, address(dai), 100 ether, "");
+        flash.flashLoan(badReturn, address(usdv), 100 ether, "");
     }
 
     function testFail_no_callbacks1 () public {
-        flash.vatDaiFlashLoan(IVatDaiFlashBorrower(address(noCallbacks)), rad(100 ether), "");
+        flash.vatUsdvFlashLoan(IVatUsdvFlashBorrower(address(noCallbacks)), rad(100 ether), "");
     }
     function testFail_no_callbacks2 () public {
-        flash.flashLoan(IERC3156FlashBorrower(address(noCallbacks)), address(dai), 100 ether, "");
+        flash.flashLoan(IERC3156FlashBorrower(address(noCallbacks)), address(usdv), 100 ether, "");
     }
 
 }

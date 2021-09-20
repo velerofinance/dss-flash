@@ -18,16 +18,16 @@ pragma solidity 0.6.12;
 
 import "./interface/IERC3156FlashLender.sol";
 import "./interface/IERC3156FlashBorrower.sol";
-import "./interface/IVatDaiFlashLender.sol";
+import "./interface/IVatUsdvFlashLender.sol";
 
-interface DaiLike {
+interface UsdvLike {
     function balanceOf(address) external returns (uint256);
     function transferFrom(address, address, uint256) external returns (bool);
     function approve(address, uint256) external returns (bool);
 }
 
-interface DaiJoinLike {
-    function dai() external view returns (address);
+interface UsdvJoinLike {
+    function usdv() external view returns (address);
     function vat() external view returns (address);
     function join(address, uint256) external;
     function exit(address, uint256) external;
@@ -35,13 +35,13 @@ interface DaiJoinLike {
 
 interface VatLike {
     function hope(address) external;
-    function dai(address) external view returns (uint256);
+    function usdv(address) external view returns (uint256);
     function move(address, address, uint256) external;
     function heal(uint256) external;
     function suck(address, address, uint256) external;
 }
 
-contract DssFlash is IERC3156FlashLender, IVatDaiFlashLender {
+contract DssFlash is IERC3156FlashLender, IVatUsdvFlashLender {
 
     // --- Auth ---
     function rely(address usr) external auth { wards[usr] = 1; emit Rely(usr); }
@@ -54,23 +54,23 @@ contract DssFlash is IERC3156FlashLender, IVatDaiFlashLender {
 
     // --- Data ---
     VatLike     public immutable vat;
-    DaiJoinLike public immutable daiJoin;
-    DaiLike     public immutable dai;
+    UsdvJoinLike public immutable usdvJoin;
+    UsdvLike     public immutable usdv;
     address     public immutable vow;       // vow intentionally set immutable to save gas
 
-    uint256     public  max;     // Maximum borrowable Dai  [wad]
+    uint256     public  max;     // Maximum borrowable USDV  [wad]
     uint256     public  toll;    // Fee                     [wad = 100%]
     uint256     private locked;  // Reentrancy guard
 
     bytes32 public constant CALLBACK_SUCCESS = keccak256("ERC3156FlashBorrower.onFlashLoan");
-    bytes32 public constant CALLBACK_SUCCESS_VAT_DAI = keccak256("VatDaiFlashBorrower.onVatDaiFlashLoan");
+    bytes32 public constant CALLBACK_SUCCESS_VAT_USDV = keccak256("VatUsdvFlashBorrower.onVatUsdvFlashLoan");
 
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
     event File(bytes32 indexed what, uint256 data);
     event FlashLoan(address indexed receiver, address token, uint256 amount, uint256 fee);
-    event VatDaiFlashLoan(address indexed receiver, uint256 amount, uint256 fee);
+    event VatUsdvFlashLoan(address indexed receiver, uint256 amount, uint256 fee);
 
     modifier lock {
         require(locked == 0, "DssFlash/reentrancy-guard");
@@ -80,17 +80,17 @@ contract DssFlash is IERC3156FlashLender, IVatDaiFlashLender {
     }
 
     // --- Init ---
-    constructor(address daiJoin_, address vow_) public {
+    constructor(address usdvJoin_, address vow_) public {
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
 
-        VatLike vat_ = vat = VatLike(DaiJoinLike(daiJoin_).vat());
-        daiJoin = DaiJoinLike(daiJoin_);
-        DaiLike dai_ = dai = DaiLike(DaiJoinLike(daiJoin_).dai());
+        VatLike vat_ = vat = VatLike(UsdvJoinLike(usdvJoin_).vat());
+        usdvJoin = UsdvJoinLike(usdvJoin_);
+        UsdvLike usdv_ = usdv = UsdvLike(usdvJoinLike(usdvJoin_).usdv());
         vow = vow_;
 
-        vat_.hope(daiJoin_);
-        dai_.approve(daiJoin_, type(uint256).max);
+        vat_.hope(usdvJoin_);
+        usdv_.approve(usdvJoin_, type(uint256).max);
     }
 
     // --- Math ---
@@ -107,7 +107,7 @@ contract DssFlash is IERC3156FlashLender, IVatDaiFlashLender {
     // --- Administration ---
     function file(bytes32 what, uint256 data) external auth {
         if (what == "max") {
-            // Add an upper limit of 10^27 DAI to avoid breaking technical assumptions of DAI << 2^256 - 1
+            // Add an upper limit of 10^27 USDV to avoid breaking technical assumptions of USDV << 2^256 - 1
             require((max = data) <= RAD, "DssFlash/ceiling-too-high");
         } else if (what == "toll") toll = data;
         else revert("DssFlash/file-unrecognized-param");
@@ -118,7 +118,7 @@ contract DssFlash is IERC3156FlashLender, IVatDaiFlashLender {
     function maxFlashLoan(
         address token
     ) external override view returns (uint256) {
-        if (token == address(dai) && locked == 0) {
+        if (token == address(usdv) && locked == 0) {
             return max;
         } else {
             return 0;
@@ -128,7 +128,7 @@ contract DssFlash is IERC3156FlashLender, IVatDaiFlashLender {
         address token,
         uint256 amount
     ) external override view returns (uint256) {
-        require(token == address(dai), "DssFlash/token-unsupported");
+        require(token == address(usdv), "DssFlash/token-unsupported");
 
         return _mul(amount, toll) / WAD;
     }
@@ -138,7 +138,7 @@ contract DssFlash is IERC3156FlashLender, IVatDaiFlashLender {
         uint256 amount,
         bytes calldata data
     ) external override lock returns (bool) {
-        require(token == address(dai), "DssFlash/token-unsupported");
+        require(token == address(usdv), "DssFlash/token-unsupported");
         require(amount <= max, "DssFlash/ceiling-exceeded");
 
         uint256 amt = _mul(amount, RAY);
@@ -146,7 +146,7 @@ contract DssFlash is IERC3156FlashLender, IVatDaiFlashLender {
         uint256 total = _add(amount, fee);
 
         vat.suck(address(this), address(this), amt);
-        daiJoin.exit(address(receiver), amount);
+        USDVJoin.exit(address(receiver), amount);
 
         emit FlashLoan(address(receiver), token, amount, fee);
 
@@ -155,44 +155,44 @@ contract DssFlash is IERC3156FlashLender, IVatDaiFlashLender {
             "DssFlash/callback-failed"
         );
 
-        dai.transferFrom(address(receiver), address(this), total); // The fee is also enforced here
-        daiJoin.join(address(this), total);
+        USDV.transferFrom(address(receiver), address(this), total); // The fee is also enforced here
+        USDVJoin.join(address(this), total);
         vat.heal(amt);
 
         return true;
     }
 
-    // --- Vat Dai Flash Loan ---
-    function vatDaiFlashLoan(
-        IVatDaiFlashBorrower receiver,          // address of conformant IVatDaiFlashBorrower
+    // --- Vat USDV Flash Loan ---
+    function vatUsdvFlashLoan(
+        IVatUsdvFlashBorrower receiver,          // address of conformant IVatUsdvFlashBorrower
         uint256 amount,                         // amount to flash loan [rad]
         bytes calldata data                     // arbitrary data to pass to the receiver
     ) external override lock returns (bool) {
         require(amount <= _mul(max, RAY), "DssFlash/ceiling-exceeded");
 
-        uint256 prev = vat.dai(address(this));
+        uint256 prev = vat.usdv(address(this));
         uint256 fee = _mul(amount, toll) / WAD;
 
         vat.suck(address(this), address(receiver), amount);
 
-        emit VatDaiFlashLoan(address(receiver), amount, fee);
+        emit VatUsdvFlashLoan(address(receiver), amount, fee);
 
         require(
-            receiver.onVatDaiFlashLoan(msg.sender, amount, fee, data) == CALLBACK_SUCCESS_VAT_DAI,
+            receiver.onVatUsdvFlashLoan(msg.sender, amount, fee, data) == CALLBACK_SUCCESS_VAT_USDV,
             "DssFlash/callback-failed"
         );
 
         vat.heal(amount);
-        require(vat.dai(address(this)) >= _add(prev, fee), "DssFlash/insufficient-fee");
+        require(vat.usdv(address(this)) >= _add(prev, fee), "DssFlash/insufficient-fee");
 
         return true;
     }
 
     function convert() external lock {
-        daiJoin.join(address(this), dai.balanceOf(address(this)));
+        usdvJoin.join(address(this), usdv.balanceOf(address(this)));
     }
 
     function accrue() external lock {
-        vat.move(address(this), vow, vat.dai(address(this)));
+        vat.move(address(this), vow, vat.usdv(address(this)));
     }
 }
