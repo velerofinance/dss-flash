@@ -222,7 +222,7 @@ contract TestReentrancyReceiver is FlashLoanReceiverBase {
 
         payBackVatUsdv(add(_amount, _fee));
 
-        return CALLBACK_SUCCESS_VAT_usdv;
+        return CALLBACK_SUCCESS_VAT_USDV;
     }
 
 }
