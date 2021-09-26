@@ -27,7 +27,6 @@ import {Token}              from "dss/usdv.sol";
 
 import "./flash.sol";
 import "./base/FlashLoanReceiverBase.sol";
-import "../../dss/src/usdv.sol";
 
 interface Hevm {
     function warp(uint256) external;
