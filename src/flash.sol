@@ -86,7 +86,7 @@ contract DssFlash is IERC3156FlashLender, IVatUsdvFlashLender {
 
         VatLike vat_ = vat = VatLike(UsdvJoinLike(usdvJoin_).vat());
         usdvJoin = UsdvJoinLike(usdvJoin_);
-        UsdvLike usdv_ = usdv = UsdvLike(usdvJoinLike(usdvJoin_).usdv());
+        UsdvLike usdv_ = usdv = UsdvLike(UsdvJoinLike(usdvJoin_).usdv());
         vow = vow_;
 
         vat_.hope(usdvJoin_);
@@ -146,7 +146,7 @@ contract DssFlash is IERC3156FlashLender, IVatUsdvFlashLender {
         uint256 total = _add(amount, fee);
 
         vat.suck(address(this), address(this), amt);
-        USDVJoin.exit(address(receiver), amount);
+        usdvJoin.exit(address(receiver), amount);
 
         emit FlashLoan(address(receiver), token, amount, fee);
 
@@ -155,8 +155,8 @@ contract DssFlash is IERC3156FlashLender, IVatUsdvFlashLender {
             "DssFlash/callback-failed"
         );
 
-        USDV.transferFrom(address(receiver), address(this), total); // The fee is also enforced here
-        USDVJoin.join(address(this), total);
+        usdv.transferFrom(address(receiver), address(this), total); // The fee is also enforced here
+        usdvJoin.join(address(this), total);
         vat.heal(amt);
 
         return true;
