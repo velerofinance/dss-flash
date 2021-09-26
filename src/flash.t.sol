@@ -367,7 +367,7 @@ contract DssFlashTest is DSTest {
         gemA.join(me, 1000 ether);
 
         usdv = new Token(0);
-        usdvJoin = new UsdvJoin(address(vat), address(usdv));
+        usdvJoin = new USDVJoin(address(vat), address(usdv));
         vat.rely(address(usdvJoin));
         usdv.rely(address(usdvJoin));
 
