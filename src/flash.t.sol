@@ -115,7 +115,7 @@ contract TestLoanAndPaybackReceiver is FlashLoanReceiverBase {
     function onFlashLoan(address _sender, address _token, uint256 _amount, uint256 _fee, bytes calldata) external override returns (bytes32) {
         _sender; _token;
         TestVat(address(flash.vat())).mint(address(this), rad(mint));
-        flash.vat().hope(address(flash.USDVJoin()));
+        flash.vat().hope(address(flash.usdvJoin()));
         flash.usdvJoin().exit(address(this), mint);
 
         approvePayback(add(_amount, _fee));
